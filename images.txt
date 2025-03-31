@@ -5,6 +5,7 @@ jlesage/firefox:latest
 niruix/sshwifty:latest
 vaultwarden/server:latest
 ghcr.io/open-webui/open-webui:latest
+ghcr.io/zephyruso/zashboard:latest
 b3log/siyuan:latest
 jeessy/ddns-go
 deluan/navidrome
