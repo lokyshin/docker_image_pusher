@@ -10,5 +10,6 @@ ghcr.io/metacubex/metacubexd
 b3log/siyuan:latest
 jeessy/ddns-go
 deluan/navidrome
+tailscale/tailsclae
 #支持指定架构
 #--platform=linux/arm64 xiaoyaliu/alist
