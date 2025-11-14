@@ -11,5 +11,6 @@ b3log/siyuan:latest
 jeessy/ddns-go
 deluan/navidrome
 tailscale/tailscale
+jupyter/base-notebook:latest
 #支持指定架构
 #--platform=linux/arm64 xiaoyaliu/alist
