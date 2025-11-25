@@ -1,5 +1,6 @@
 portainer/portainer-ce
 stirlingtools/stirling-pdf:latest
+aaronmader/8n86u4xwkcstd6yfdtdwq3wm
 xhofe/alist:latest
 jlesage/firefox:latest
 niruix/sshwifty:latest
