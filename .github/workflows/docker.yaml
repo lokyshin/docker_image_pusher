@@ -1,8 +1,11 @@
-name: Docker 镜像同步 - 第1批
+name: Docker 镜像同步器
 
 on:
+  # 定时任务：每天北京时间凌晨2点执行（UTC 18:00）
   schedule:
-    - cron: '0 18 * * *'  # 每天凌晨2点
+    - cron: '0 18 * * *'
+  
+  # 手动触发
   workflow_dispatch:
 
 env:
@@ -12,23 +15,200 @@ env:
   ALIYUN_REGISTRY_PASSWORD: "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}"
 
 jobs:
-  build:
+  # ============================================
+  # 任务1：环境清理（始终第一个运行）
+  # ============================================
+  cleanup:
+    name: 🧹 环境清理
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
-      
-    - name: 处理第1批镜像（1-5个）
-      run: |
-        # 只取前5行
-        head -n 5 images.txt > images_batch.txt
-        
-        # 登录并处理这5个镜像
-        echo "$ALIYUN_REGISTRY_PASSWORD" | docker login -u "$ALIYUN_REGISTRY_USER" --password-stdin "$ALIYUN_REGISTRY"
-        
-        while read line; do
-          docker pull "$line"
-          # ... 推送逻辑 ...
-          docker rmi -f "$line"
-          docker system prune -f
-        done < images_batch.txt
+      - name: ⚡ 深度清理 Runner 环境
+        run: |
+          echo "================================================================"
+          echo "开始深度清理 GitHub Actions 环境"
+          echo "================================================================"
+          
+          # 显示清理前状态
+          echo "清理前磁盘状态："
+          df -h | head -5
+          echo ""
+          
+          # 1. 清理诊断日志目录（关键：防止日志累积导致空间不足）
+          echo "1. 清理诊断日志..."
+          sudo rm -rf /home/runner/actions-runner/_diag/* 2>/dev/null || true
+          sudo rm -rf /home/runner/actions-runner/cached/_diag/* 2>/dev/null || true
+          sudo find /home/runner -name "*.log" -type f -delete 2>/dev/null || true
+          
+          # 2. 清理工作目录
+          echo "2. 清理工作目录..."
+          sudo rm -rf /home/runner/actions-runner/_work/* 2>/dev/null || true
+          
+          # 3. 清理系统缓存和临时文件
+          echo "3. 清理缓存和临时文件..."
+          sudo rm -rf /home/runner/.cache/* 2>/dev/null || true
+          sudo rm -rf /home/runner/.npm/* 2>/dev/null || true
+          sudo rm -rf /home/runner/.m2/* 2>/dev/null || true
+          sudo rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
+          
+          # 4. 停止并清理 Docker
+          echo "4. 清理 Docker..."
+          docker stop $(docker ps -q) 2>/dev/null || true
+          docker rm -f $(docker ps -aq) 2>/dev/null || true
+          docker rmi -f $(docker images -q) 2>/dev/null || true
+          docker system prune -a -f --volumes 2>/dev/null || true
+          docker volume prune -f 2>/dev/null || true
+          
+          # 5. 释放系统缓存
+          echo "5. 释放系统缓存..."
+          sudo sync
+          sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null || true
+          
+          # 显示清理后状态
+          echo ""
+          echo "清理后磁盘状态："
+          df -h | head -5
+          echo "================================================================"
+          echo "✅ 环境清理完成"
+          echo "================================================================"
+
+  # ============================================
+  # 任务2：最大化构建空间（依赖清理完成）
+  # ============================================
+  maximize-space:
+    name: 📦 最大化构建空间
+    runs-on: ubuntu-latest
+    needs: cleanup  # 等待 cleanup 完成
+    
+    steps:
+      - name: 最大化构建空间
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 4096
+          remove-dotnet: 'true'
+          remove-haskell: 'true'
+          remove-android: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+          remove-python: 'true'
+          remove-node: 'true'
+          remove-java: 'true'
+          remove-ruby: 'true'
+          remove-go: 'true'
+          remove-php: 'true'
+          remove-rust: 'true'
+
+  # ============================================
+  # 任务3：处理镜像（依赖空间最大化完成）
+  # ============================================
+  process-images:
+    name: 🚀 处理 Docker 镜像
+    runs-on: ubuntu-latest
+    needs: maximize-space  # 等待 maximize-space 完成
+    
+    steps:
+      # 启动 Docker
+      - name: 🐳 启动 Docker
+        run: |
+          sudo systemctl start docker
+          sleep 3
+          docker --version
+
+      # 检出代码
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # 处理镜像
+      - name: 处理镜像列表
+        run: |
+          echo "================================================================"
+          echo "开始处理 Docker 镜像"
+          echo "================================================================"
+          
+          # 登录阿里云
+          echo "$ALIYUN_REGISTRY_PASSWORD" | docker login -u "$ALIYUN_REGISTRY_USER" --password-stdin "$ALIYUN_REGISTRY"
+          
+          # 检查镜像列表
+          if [ ! -f "images.txt" ]; then
+            echo "❌ 找不到 images.txt 文件"
+            exit 1
+          fi
+          
+          # 预处理：移除空行和注释
+          grep -v '^\s*#' images.txt | grep -v '^\s*$' > images_clean.txt
+          total=$(wc -l < images_clean.txt)
+          echo "共 $total 个镜像需要处理"
+          echo ""
+          
+          # 逐行处理
+          success=0
+          failed=0
+          count=0
+          
+          while IFS= read -r image_line; do
+            count=$((count + 1))
+            
+            echo "----------------------------------------------------------------"
+            echo "[$count/$total] 处理: $image_line"
+            
+            # 拉取镜像
+            if docker pull "$image_line"; then
+              # 构建目标镜像名
+              clean_image="${image_line%%@*}"
+              tag=$(basename "$clean_image")
+              target="$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/$tag"
+              
+              # 打标签
+              docker tag "$clean_image" "$target"
+              
+              # 推送
+              if docker push "$target"; then
+                echo "✅ 成功: $tag"
+                success=$((success + 1))
+              else
+                echo "❌ 推送失败: $tag"
+                failed=$((failed + 1))
+              fi
+              
+              # 立即清理
+              docker rmi -f "$clean_image" "$target" 2>/dev/null || true
+              
+            else
+              echo "❌ 拉取失败: $image_line"
+              failed=$((failed + 1))
+            fi
+            
+            # 每3个镜像深度清理一次
+            if [ $((count % 3)) -eq 0 ]; then
+              echo "--- 定期清理 ---"
+              docker system prune -f 2>/dev/null || true
+              docker builder prune -f 2>/dev/null || true
+            fi
+            
+          done < images_clean.txt
+          
+          # 最终统计
+          echo ""
+          echo "================================================================"
+          echo "处理完成: 成功 $success, 失败 $failed, 总计 $total"
+          echo "================================================================"
+          
+          # 清理临时文件
+          rm -f images_clean.txt
+          
+          # 如果全部失败，标记工作流失败
+          [ $success -eq 0 ] && [ $total -gt 0 ] && exit 1 || true
+
+      # 最终清理
+      - name: 🧹 最终清理
+        if: always()
+        run: |
+          echo "执行最终清理..."
+          docker stop $(docker ps -q) 2>/dev/null || true
+          docker system prune -a -f --volumes 2>/dev/null || true
+          sudo rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
+          sudo rm -rf /home/runner/actions-runner/_diag/* 2>/dev/null || true
+          echo "清理完成"
