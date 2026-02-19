@@ -23,9 +23,6 @@ jobs:
     name: 镜像同步
     runs-on: ubuntu-latest
     
-    # 使用较小的 runner，占用更少资源
-    # runs-on: ubuntu-22.04  # 也可以尝试更小的环境
-    
     steps:
     # 步骤 0：在执行任何操作前立即清理磁盘
     - name: ⚡ 立即清理磁盘空间（关键步骤）
@@ -118,8 +115,6 @@ jobs:
         remove-go: 'true'
         remove-php: 'true'
         remove-rust: 'true'
-        remove-haskell: 'true'
-        remove-dotnet: 'true'
         build-mount-path: '/var/lib/docker/'
 
     # 步骤 2：重新启动 Docker 服务
