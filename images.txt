@@ -13,7 +13,7 @@ jeessy/ddns-go
 deluan/navidrome
 tailscale/tailscale
 jupyter/base-notebook:latest
-docker pull ghcr.io/lukegus/termix:release-2.0.0
+ghcr.io/lukegus/termix:latest
 snowdreamtech/frpc
 #支持指定架构
 #--platform=linux/arm64 xiaoyaliu/alist
