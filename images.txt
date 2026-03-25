@@ -13,7 +13,10 @@ jeessy/ddns-go
 deluan/navidrome
 tailscale/tailscale
 jupyter/base-notebook:latest
+#termix2.0需要和guacd一起
 ghcr.io/lukegus/termix:latest
+guacamole/guacd:latest
+##
 snowdreamtech/frpc
 #支持指定架构
 #--platform=linux/arm64 xiaoyaliu/alist
