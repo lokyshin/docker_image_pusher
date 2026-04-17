@@ -16,7 +16,7 @@ jupyter/base-notebook:latest
 #termix2.0需要和guacd一起
 ghcr.io/lukegus/termix:latest
 guacamole/guacd:latest
-python:3.12-slim
+docker.io/library/python:3.12-slim
 ##
 snowdreamtech/frpc
 #支持指定架构
