@@ -17,6 +17,15 @@ jupyter/base-notebook:latest
 ghcr.io/lukegus/termix:latest
 guacamole/guacd:latest
 docker.io/library/python:3.12-slim
+registry.librechat.ai/danny-avila/librechat-dev:latest
+docker.io/library/mongo:8.0.20
+docker.io/getmeili/meilisearch:v1.35.1
+docker.io/pgvector/pgvector:0.8.0-pg15-trixie
+registry.librechat.ai/danny-avila/librechat-rag-api-dev-lite:latest
+#备用缓存
+docker.io/library/mongo:latest
+docker.io/getmeili/meilisearch:latest
+docker.io/pgvector/pgvector:latest
 ##
 snowdreamtech/frpc
 #支持指定架构
