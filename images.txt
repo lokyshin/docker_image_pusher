@@ -16,7 +16,7 @@ jupyter/base-notebook:latest
 #termix2.0需要和guacd一起
 ghcr.io/lukegus/termix:latest
 guacamole/guacd:latest
-docker.io/library/python:3.12-slim
+docker.io/library/python:3.11-slim
 registry.librechat.ai/danny-avila/librechat-dev:latest
 docker.io/library/mongo:8.0.20
 docker.io/getmeili/meilisearch:v1.35.1
