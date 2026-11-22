@@ -26,7 +26,7 @@ registry.librechat.ai/danny-avila/librechat-rag-api-dev-lite:latest
 #备用缓存
 docker.io/library/mongo:latest
 docker.io/getmeili/meilisearch:latest
-docker.io/pgvector/pgvector:latest
+docker.io/pgvector/pgvector:pg16-trixie
 ##
 snowdreamtech/frpc
 #支持指定架构

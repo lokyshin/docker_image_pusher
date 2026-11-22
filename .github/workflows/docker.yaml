@@ -117,7 +117,7 @@ jobs:
 
       # 检出代码
       - name: 📥 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -164,13 +164,21 @@ jobs:
               # 打标签
               docker tag "$clean_image" "$target"
               
-              # 推送
+              # 推送（失败时重打包重试：剥离 attestation 清单 / 转换 zstd 层）
               if docker push "$target"; then
                 echo "✅ 成功: $tag"
                 success=$((success + 1))
               else
-                echo "❌ 推送失败: $tag"
-                failed=$((failed + 1))
+                echo "⚠️ 直接推送失败，尝试重打包后重推: $tag"
+                docker save "$clean_image" | docker load 2>&1 | tail -1
+                docker tag "$clean_image" "$target"
+                if docker push "$target"; then
+                  echo "✅ 成功(重打包): $tag"
+                  success=$((success + 1))
+                else
+                  echo "❌ 推送失败: $tag"
+                  failed=$((failed + 1))
+                fi
               fi
               
               # 立即清理
@@ -199,8 +207,8 @@ jobs:
           # 清理临时文件
           rm -f images_clean.txt
           
-          # 如果全部失败，标记工作流失败
-          [ $success -eq 0 ] && [ $total -gt 0 ] && exit 1 || true
+          # 只要有失败就标记工作流失败（方便在 Actions 页面发现问题）
+          [ $failed -gt 0 ] && exit 1 || true
 
       # 最终清理
       - name: 🧹 最终清理
