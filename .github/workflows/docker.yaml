@@ -154,8 +154,8 @@ jobs:
             echo "----------------------------------------------------------------"
             echo "[$count/$total] 处理: $image_line"
             
-            # 拉取镜像
-            if docker pull "$image_line"; then
+            # 拉取镜像（带 15 分钟超时，防止网络挂死卡住整个工作流）
+            if timeout 900 docker pull "$image_line"; then
               # 构建目标镜像名
               clean_image="${image_line%%@*}"
               tag=$(basename "$clean_image")
@@ -164,16 +164,16 @@ jobs:
               # 打标签
               docker tag "$clean_image" "$target"
               
-              # 推送（失败时重打包重试：剥离 attestation 清单 / 转换 zstd 层）
-              if docker push "$target"; then
+              # 推送（带 15 分钟超时；失败时用单层构建重封装后重推）
+              # 单层构建生成标准 Docker v2 manifest + gzip 层，剥离 attestation/OCI 特殊格式
+              if timeout 900 docker push "$target"; then
                 echo "✅ 成功: $tag"
                 success=$((success + 1))
               else
-                echo "⚠️ 直接推送失败，尝试重打包后重推: $tag"
-                docker save "$clean_image" | docker load 2>&1 | tail -1
-                docker tag "$clean_image" "$target"
-                if docker push "$target"; then
-                  echo "✅ 成功(重打包): $tag"
+                echo "⚠️ 直接推送失败，尝试单层构建重封装后重推: $tag"
+                echo "FROM $clean_image" | docker build --provenance=false -t "$target" - 2>&1 | tail -2
+                if timeout 900 docker push "$target"; then
+                  echo "✅ 成功(重封装): $tag"
                   success=$((success + 1))
                 else
                   echo "❌ 推送失败: $tag"
